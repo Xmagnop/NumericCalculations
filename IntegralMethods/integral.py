@@ -1,47 +1,49 @@
-from abc import ABC, abstractmethod
+import numpy as np
+import math
+from scipy.interpolate import KroghInterpolator
 
-class Integral(ABC):
-    def __init__(self, limite_inf: int = None, limite_sup: int = None, h: float = None, quant_pontos: int = None, x: list[float] = None, func_integral=None, func_derivada_integral=None):
-        self.func_integral = func_integral
-        self.func_derivada_integral = func_derivada_integral
-        self.y = []
 
-        if x is not None:
-            self.x = x
-            self.limite_inf = x[0]
-            self.limite_sup = x[-1]
-            self.quant_pontos = len(x) - 1
-            self.h = (self.limite_sup - self.limite_inf) / self.quant_pontos
-        else:
+class Integral:
+    def __init__(self):
+        self.limite_inf = None
+        self.limite_sup = None
+        self.h = None
+        self.x = None
+        self.y = None
+        self.quant_pontos = None
+
+    def saber_maior(self, a, b):
+        return a if abs(a) > abs(b) else b
+
+    def integral(self):
+        raise NotImplementedError("Método integral() deve ser implementado na subclasse")
+
+    def erro_simples(self):
+        raise NotImplementedError("Método erro_simples() deve ser implementado na subclasse")
+
+    def erro_generalizado(self):
+        raise NotImplementedError("Método erro_generalizado() deve ser implementado na subclasse")
+
+    def derivada_quarta_ordem(self, ponto):
+        # Estima derivada 4a pela interpolação Krogh
+        return self.interpolador.derivative(ponto, 4)
+
+    def _setup(self, x=None, y=None, limite_inf=None, limite_sup=None, func_integral=None, h=None):
+        if x is not None and y is not None:
+            self.x = np.array(x)
+            self.y = np.array(y)
+            self.limite_inf = self.x[0]
+            self.limite_sup = self.x[-1]
+            self.h = self.x[1] - self.x[0]
+            self.quant_pontos = len(self.x) - 1
+        elif limite_inf is not None and limite_sup is not None and func_integral is not None and h is not None:
             self.limite_inf = limite_inf
             self.limite_sup = limite_sup
             self.h = h
-            self.quant_pontos = quant_pontos
-            self.x = [self.limite_inf + i * self.h for i in range(self.quant_pontos + 1)]
+            self.x = np.arange(limite_inf, limite_sup + h/10, h)
+            self.y = np.array([func_integral(xi) for xi in self.x])
+            self.quant_pontos = len(self.x) - 1
+        else:
+            raise ValueError("Parâmetros inválidos: deve passar x e y ou limite_inf, limite_sup, func_integral e h")
 
-
-    def saber_maior(self, x, y):
-        if x is None:
-            return y
-        if y is None:
-            return x
-        return x if abs(x) > abs(y) else y
-
-
-    def criar_vetor_x(self):
-        i = self.limite_inf
-        while round(i, 10) <= round(self.limite_sup, 10):
-            self.x.append(round(i, 10))
-            i += self.h
-
-    @abstractmethod
-    def erro_simples(self):
-        pass
-
-    @abstractmethod
-    def erro_generalizado(self):
-        pass
-
-    @abstractmethod
-    def integral(self):
-        pass
+        self.interpolador = KroghInterpolator(self.x, self.y)
